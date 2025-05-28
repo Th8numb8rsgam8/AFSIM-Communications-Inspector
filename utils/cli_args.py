@@ -76,6 +76,12 @@ class CLIParser:
          default="CUI",
          help="Classification of data used"
       )
+      cli_parser.add_argument(
+         "-Cs", "--cesium",
+         dest="use_cesium",
+         action="store_true",
+         help="Flag to use CesiumJS as globe visualizer instead of Plotly."
+      )
 
       cli_parser.add_argument("--version", action="version", version='%(prog)s 0.0.1')
       self._arguments = vars(cli_parser.parse_args())
