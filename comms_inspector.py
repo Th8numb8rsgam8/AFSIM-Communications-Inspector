@@ -1,4 +1,3 @@
-import math
 import subprocess
 import json, pickle
 import shutil, os, sys
@@ -6,6 +5,7 @@ import webbrowser, warnings
 from datetime import datetime
 from dateutil import parser
 from utils.cli_args import CLIParser
+from utils.cesium_imager import CesiumJSGlobe
 import numpy as np
 from pathlib import Path
 import pandas as pd
@@ -23,7 +23,8 @@ class AFSIMCommsInspector:
       land_color=None, 
       ocean_color=None, 
       resolution=None,
-      classification=None):
+      classification=None,
+      use_cesium=None):
 
       self._host = "127.0.0.1"
       self._port = 8050
@@ -72,7 +73,7 @@ class AFSIMCommsInspector:
 
       self._file_dir = Path(__file__)
       self._classification = classification
-
+      self._use_cesium = use_cesium
 
       self._handle_input_file(communications_data) 
 
@@ -87,23 +88,29 @@ class AFSIMCommsInspector:
       self._equator_radius = 6.378 * 10**6
       self._polar_radius = 6.357 * 10**6
 
-      self._load_earth_data(land_color, ocean_color, resolution)
+      if not self._use_cesium:
+         self._load_earth_data(land_color, ocean_color, resolution)
 
-      self._set_earth_points()
-      self._set_earth_surface()
+         self._set_earth_points()
+         self._set_earth_surface()
 
-      self._set_axes_range()
-      self._set_axes_attributes()
+         self._set_axes_range()
+         self._set_axes_attributes()
 
-      self._initialize_figure()
+         self._initialize_figure()
+
       self._set_dash_layout()
 
-      self._define_barplot_callback()
-      self._define_filter_callback()
-      self._define_filter_storage_callback()
-      self._define_dropdown_options_callback()
-      self._define_time_button_callback()
-      self._define_time_label_callback()
+      if self._use_cesium:
+         CesiumJSGlobe.add_cesium_feature(self._app)
+
+      if not self._use_cesium:
+         self._define_barplot_callback()
+         self._define_filter_callback()
+         self._define_filter_storage_callback()
+         self._define_dropdown_options_callback()
+         self._define_time_button_callback()
+         self._define_time_label_callback()
 
 
    def _handle_input_file(self, communications_data):
@@ -621,6 +628,17 @@ class AFSIMCommsInspector:
 
       return df_message
 
+   def _create_map_view(self):
+
+      if self._use_cesium:
+         return [CesiumJSGlobe.add_cesium_element()]
+      else:
+         return [
+            self._create_globe_visual(), 
+            self._create_slider(), 
+            self._create_time_buttons()]
+
+
    def _create_displayed_data_row(self):
 
       displayed_data = dbc.Row(
@@ -630,11 +648,9 @@ class AFSIMCommsInspector:
             'zIndex': '1'
          },
          children=[
-            dbc.Col([
-               self._create_globe_visual(),
-               self._create_slider(),
-               self._create_time_buttons()
-            ], width=6),
+            dbc.Col(
+               self._create_map_view(),
+               width=6),
             dbc.Col([
                self._create_bar_subplots(),
                self._create_time_label(),
@@ -1185,6 +1201,7 @@ class AFSIMCommsInspector:
    def run(self):
       webbrowser.open(f"http://{self._host}:{self._port}/")
       self._app.run_server(debug=False, host=self._host, port=self._port)
+
 
 
 if __name__ == "__main__":
